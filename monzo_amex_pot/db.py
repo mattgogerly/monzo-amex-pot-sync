@@ -1,11 +1,12 @@
+import os
 from tinydb import TinyDB, Query
 
-db = TinyDB('db.json')
+db = TinyDB(os.path.abspath('/etc/monzo/db.json'))
 
 
 def get_tokens(name):
     data = Query()
-    result = db.get(data.name is name)
+    result = db.get(data.name == name)
 
     if result is None:
         return {}
@@ -16,4 +17,4 @@ def get_tokens(name):
 def save(name, access_token, refresh_token, expires):
     data = Query()
     db.upsert({'name': name, 'access_token': access_token, 'refresh_token': refresh_token, 'expires': expires},
-              data.name is name)
+              data.name == name)

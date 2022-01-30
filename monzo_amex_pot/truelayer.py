@@ -1,13 +1,13 @@
-import db
 import logging as log
 import os
 import requests
 import time
-import urllib
+from . import db
+from urllib import parse
 from flask import Blueprint, request
 
-CLIENT_ID = os.getenv('CLIENT_ID')
-CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+CLIENT_ID = os.getenv('TRUE_LAYER_CLIENT_ID')
+CLIENT_SECRET = os.getenv('TRUE_LAYER_CLIENT_SECRET')
 REDIRECT_URI = "http://localhost:36789/truelayer/callback"
 
 bp = Blueprint('truelayer', __name__, url_prefix='/truelayer')
@@ -83,7 +83,7 @@ def get_total_balance():
 
 @bp.route('/signin', methods=['GET'])
 def sign_in():
-    query = urllib.parse.urlencode({
+    query = parse.urlencode({
         'response_type': 'code',
         'response_mode': 'form_post',
         'client_id': CLIENT_ID,

@@ -3,9 +3,8 @@ import os
 import schedule
 import threading
 import time
-import monzo
-import truelayer
-from flask import abort, Flask
+from monzo_amex_pot import monzo, truelayer
+from flask import Flask
 
 log.basicConfig(level=log.INFO)
 
@@ -23,7 +22,7 @@ def create_app(test_config=None):
 
     # ensure the instance folder exists
     try:
-        os.makedirs(app.instance_path)
+        os.makedirs(flask_app.instance_path)
     except OSError:
         pass
 
@@ -42,15 +41,15 @@ def run():
         monzo_account, monzo_pot = monzo.get_account_and_pot()
         pot_balance = monzo_pot['balance']
     except Exception as e:
-        log.exception('Failed to get pot balance from Monzo: %s', e)
-        abort(500)
+        log.info('Failed to get pot balance from Monzo: %s', e)
+        return {}, 500
 
     try:
         amex_balance = truelayer.get_total_balance()
     except Exception as e:
-        log.exception('Failed to get Amex balance from TrueLayer, sending Monzo notification: %s', e)
+        log.info('Failed to get Amex balance from TrueLayer, sending Monzo notification: %s', e)
         monzo.send_notification(monzo_account['id'], 'Authentication with Amex has expired', 'Uh oh')
-        abort(500)
+        return {}, 500
 
     balance_diff = (amex_balance * 100) - pot_balance
 
@@ -67,7 +66,7 @@ def run():
 
 
 def setup_scheduling():
-    schedule.every(15).minutes.do(run)
+    schedule.every(15).seconds.do(run)
 
     while True:
         schedule.run_pending()

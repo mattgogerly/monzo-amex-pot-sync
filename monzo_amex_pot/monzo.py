@@ -1,8 +1,8 @@
-import db
 import logging as log
 import os
 import requests
 import time
+from . import db
 from urllib import parse
 from flask import Blueprint, request
 
@@ -47,10 +47,10 @@ def refresh_access_token():
 
 
 def get_auth_header() -> object:
-    tokens = db.get_tokens('truelayer')
+    tokens = db.get_tokens('monzo')
     if len(tokens) == 0:
-        log.error('No token available to use for TrueLayer')
-        raise Exception('No token available to use for TrueLayer')
+        log.error('No token available to use for Monzo')
+        raise Exception('No token available to use for Monzo')
 
     if tokens['expires'] < time.time():
         tokens = refresh_access_token()
@@ -84,12 +84,8 @@ def find_amex_pot(account_id) -> object:
 
 
 def get_account_and_pot():
-    try:
-        account = get_account()
-        return account, find_amex_pot(account['id'])
-    except Exception as e:
-        log.error(e)
-        raise e
+    account = get_account()
+    return account, find_amex_pot(account['id'])
 
 
 def add_to_pot(account_id, pot_id, amount) -> bool:
