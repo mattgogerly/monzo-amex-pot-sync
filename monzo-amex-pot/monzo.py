@@ -3,7 +3,7 @@ import logging as log
 import os
 import requests
 import time
-import urllib
+from urllib import parse
 from flask import Blueprint, request
 
 
@@ -29,8 +29,8 @@ def handle_auth_callback(code):
     db.save('monzo', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
 
 
-def refresh_token():
-    log.info('Refreshing access token')
+def refresh_access_token():
+    log.info('Refreshing access token for Monzo')
     refresh_token = db.get_tokens('monzo')['refresh_token']
 
     body = {
@@ -44,26 +44,34 @@ def refresh_token():
 
     log.info('Refreshed access token, storing locally')
     db.save('monzo', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
-    return db.get_monzo_tokens()
+    return db.get_tokens('monzo')
+
+
+def get_auth_header() -> object:
+    tokens = db.get_tokens('truelayer')
+    if len(tokens) == 0:
+        log.error('No token available to use for TrueLayer')
+        raise Exception('No token available to use for TrueLayer')
+
+    if tokens['expires'] < time.time():
+        tokens = refresh_access_token()
+
+    return {'Authorization': f'Bearer {tokens["access_token"]}'}
 
 
 def get_account() -> object:
     log.info('Getting account info from Monzo')
-    access_token = db.get_tokens('monzo')['access_token']
-    auth_header = {'Authorization': f'Bearer {access_token}'}
-    res = requests.get(f'https://api.monzo.com/accounts', headers=auth_header)
+    res = requests.get(f'https://api.monzo.com/accounts', headers=get_auth_header())
     res.raise_for_status()
 
     return res.json()['accounts'][0]
 
 
 def find_amex_pot(account_id) -> object:
-    access_token = db.get_tokens('monzo')['access_token']
-    auth_header = {'Authorization': f'Bearer {access_token}'}
-    query = urllib.parse.urlencode({
+    query = parse.urlencode({
         'current_account_id': account_id
     })
-    res = requests.get(f'https://api.monzo.com/pots?{query}', headers=auth_header)
+    res = requests.get(f'https://api.monzo.com/pots?{query}', headers=get_auth_header())
     res.raise_for_status()
 
     pots = res.json()['pots']
@@ -77,14 +85,6 @@ def find_amex_pot(account_id) -> object:
 
 
 def get_account_and_pot():
-    tokens = db.get_tokens('monzo')
-    if len(tokens) == 0:
-        log.error('No token available to use')
-        raise Exception('No token available to use')
-
-    if tokens['expires'] < time.time():
-        tokens = refresh_token()
-
     try:
         account = get_account()
         return account, find_amex_pot(account['id'])
@@ -94,6 +94,10 @@ def get_account_and_pot():
 
 
 def add_to_pot(account_id, pot_id, amount) -> bool:
+    return True
+
+
+def withdraw_from_pot(account_id, pot_id, amount) -> bool:
     return True
 
 
@@ -114,7 +118,7 @@ def send_notification(account_id, title, message):
 
 @bp.route('/signin', methods=['GET'])
 def sign_in():
-    query = urllib.parse.urlencode({
+    query = parse.urlencode({
         'response_type': 'code',
         'client_id': CLIENT_ID,
         'state': int(time.time()),

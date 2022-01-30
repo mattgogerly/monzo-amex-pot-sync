@@ -29,48 +29,55 @@ def handle_auth_callback(code):
     db.save('truelayer', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
 
 
-def get_balance(account_id, access_token) -> object:
-    auth_header = {'Authorization': f'Bearer {access_token}'}
-    res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/balance', headers=auth_header)
-    res.raise_for_status()
-    balance = res.json()['results'][0]
+def refresh_access_token():
+    log.info('Refreshing access token for TrueLayer')
+    refresh_token = db.get_tokens('truelayer')['refresh_token']
 
-    return balance['current']
+    body = {
+        'client_id': CLIENT_ID,
+        'client_secret': CLIENT_SECRET,
+        'refresh_token': refresh_token,
+        'grant_type': 'refresh_token'
+    }
+    res = requests.post('https://api.monzo.com/oauth2/token', data=body)
+    data = res.json()
 
-
-def get_accounts(access_token) -> object:
-    auth_header = {'Authorization': f'Bearer {access_token}'}
-    res = requests.get('https://api.truelayer.com/data/v1/cards', headers=auth_header)
-    res.raise_for_status()
-
-    total = 0
-    for account in res.json()['results']:
-        acc_id = account['account_id']
-        balance = get_balance(acc_id, access_token)
-        accounts[acc_id] = {
-            'balance': balance,
-            'name': acc_name,
-        }
-
-    return total
+    log.info('Refreshed access token, storing locally')
+    db.save('monzo', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
+    return db.get_tokens('truelayer')
 
 
-def get_total_balance():
+def get_auth_header() -> object:
     tokens = db.get_tokens('truelayer')
     if len(tokens) == 0:
         log.error('No token available to use for TrueLayer')
         raise Exception('No token available to use for TrueLayer')
 
-    access_token = tokens['access_token']
+    if tokens['expires'] < time.time():
+        tokens = refresh_access_token()
 
-    auth_header = {'Authorization': f'Bearer {access_token}'}
-    res = requests.get('https://api.truelayer.com/data/v1/cards', headers=auth_header)
+    return {'Authorization': f'Bearer {tokens["access_token"]}'}
+
+
+def get_card_balance(account_id) -> object:
+    res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/balance', headers=get_auth_header())
     res.raise_for_status()
+    balance = res.json()['results'][0]
+    return balance['current']
 
+
+def get_cards() -> list:
+    res = requests.get('https://api.truelayer.com/data/v1/cards', headers=get_auth_header())
+    res.raise_for_status()
+    return res.json()['results']
+
+
+def get_total_balance():
+    cards = get_cards()
     total = 0
-    for account in res.json()['results']:
-        acc_id = account['account_id']
-        total += get_balance(acc_id, access_token)
+    for card in cards:
+        card_id = card['account_id']
+        total += get_card_balance(card_id)
 
     return total
 
