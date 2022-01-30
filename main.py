@@ -48,17 +48,15 @@ def run():
         amex_balance = truelayer.get_total_balance()
     except Exception as e:
         log.info('Failed to get Amex balance from TrueLayer, sending Monzo notification: %s', e)
-        monzo.send_notification(monzo_account['id'], 'Authentication with Amex has expired', 'Uh oh')
+        monzo.send_notification(monzo_account['id'], 'Failed to get balance from Amex', 'Uh oh')
         return {}, 500
 
     balance_diff = (amex_balance * 100) - pot_balance
 
     if balance_diff > 0:
-        log.info('Adding £%s to Amex pot to cover difference', balance_diff / 100.0)
-        monzo.add_to_pot(monzo_account['id'], monzo_pot['id'], balance_diff)
+        monzo.add_to_pot(monzo_account['id'], monzo_pot['id'], int(balance_diff))
     elif balance_diff < 0:
-        log.info('Withdrawing £%s from Amex pot', +balance_diff / 100.0)
-        monzo.withrdaw_from_pot(monzo_account['id'], monzo_pot['id'], balance_diff)
+        monzo.withrdaw_from_pot(monzo_account['id'], monzo_pot['id'], int(balance_diff))
     else:
         log.info('No balance difference, doing nothing')
 
@@ -66,7 +64,7 @@ def run():
 
 
 def setup_scheduling():
-    schedule.every(15).seconds.do(run)
+    schedule.every(15).minutes.do(run)
 
     while True:
         schedule.run_pending()

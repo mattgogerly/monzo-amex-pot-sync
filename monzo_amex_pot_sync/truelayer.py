@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import logging as log
 import os
 import requests
@@ -14,6 +15,7 @@ bp = Blueprint('truelayer', __name__, url_prefix='/truelayer')
 
 
 def handle_auth_callback(code):
+    log.info('Received auth callback for TrueLayer, fetching tokens')
     body = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
@@ -22,6 +24,7 @@ def handle_auth_callback(code):
         'redirect_uri': REDIRECT_URI,
     }
     res = requests.post('https://auth.truelayer.com/connect/token', data=body)
+    res.raise_for_status()
     data = res.json()
 
     log.info('Obtained tokens from TrueLayer, storing locally')
@@ -31,18 +34,18 @@ def handle_auth_callback(code):
 def refresh_access_token():
     log.info('Refreshing access token for TrueLayer')
     refresh_token = db.get_tokens('truelayer')['refresh_token']
-
     body = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
         'refresh_token': refresh_token,
         'grant_type': 'refresh_token'
     }
-    res = requests.post('https://api.monzo.com/oauth2/token', data=body)
+    res = requests.post('https://auth.truelayer.com/connect/token', json=body)
+    res.raise_for_status()
     data = res.json()
 
     log.info('Refreshed access token, storing locally')
-    db.save('monzo', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
+    db.save('truelayer', data['access_token'], data['refresh_token'], time.time() + data['expires_in'])
     return db.get_tokens('truelayer')
 
 
@@ -59,19 +62,29 @@ def get_auth_header() -> object:
 
 
 def get_card_balance(account_id) -> object:
+    log.info('Fetching balance for card %s', account_id)
     res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/balance', headers=get_auth_header())
     res.raise_for_status()
-    balance = res.json()['results'][0]
-    return balance['current']
+    balance = res.json()['results'][0]['current']
+
+    res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/transactions/pending',
+                       headers=get_auth_header())
+    transactions = res.json()['results']
+    for transaction in transactions:
+        balance += transaction['amount']
+
+    return balance
 
 
 def get_cards() -> list:
+    log.info('Fetching cards from TrueLayer')
     res = requests.get('https://api.truelayer.com/data/v1/cards', headers=get_auth_header())
     res.raise_for_status()
     return res.json()['results']
 
 
-def get_total_balance():
+def get_total_balance() -> float:
+    log.info('Getting total balance of Amex cards')
     cards = get_cards()
     total = 0
     for card in cards:
@@ -87,7 +100,7 @@ def sign_in():
         'response_type': 'code',
         'response_mode': 'form_post',
         'client_id': CLIENT_ID,
-        'scope': 'accounts cards balance offline_access',
+        'scope': 'accounts cards transactions balance offline_access',
         'providers': 'uk-oauth-amex',
         'disable_providers': 'uk-ob-all',
         'nonce': int(time.time())

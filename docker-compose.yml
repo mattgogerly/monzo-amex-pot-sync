@@ -7,10 +7,10 @@ services:
     ports:
       - "36789:36789/tcp"
     environment:
-      MONZO_CLIENT_ID:
-      MONZO_CLIENT_SECRET:
-      TRUE_LAYER_CLIENT_ID:
-      TRUE_LAYER_CLIENT_SECRET:
+      MONZO_CLIENT_ID: ${MONZO_CLIENT_ID}
+      MONZO_CLIENT_SECRET: ${MONZO_CLIENT_SECRET}
+      TRUE_LAYER_CLIENT_ID: ${TRUE_LAYER_CLIENT_ID}
+      TRUE_LAYER_CLIENT_SECRET: ${TRUE_LAYER_CLIENT_SECRET}
     volumes:
       - './etc/monzo/:/etc/monzo/'
     restart: unless-stopped

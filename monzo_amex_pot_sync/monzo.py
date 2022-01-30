@@ -9,11 +9,13 @@ from flask import Blueprint, request
 CLIENT_ID = os.getenv('MONZO_CLIENT_ID')
 CLIENT_SECRET = os.getenv('MONZO_CLIENT_SECRET')
 REDIRECT_URI = "http://localhost:36789/monzo/callback"
+DEDUPE_ID = 0
 
 bp = Blueprint('monzo', __name__, url_prefix='/monzo')
 
 
 def handle_auth_callback(code):
+    log.info('Received auth callback for Monzo, fetching tokens')
     body = {
         'client_id': CLIENT_ID,
         'client_secret': CLIENT_SECRET,
@@ -67,6 +69,7 @@ def get_account() -> object:
 
 
 def find_amex_pot(account_id) -> object:
+    log.info('Finding Amex pot')
     query = parse.urlencode({
         'current_account_id': account_id
     })
@@ -84,21 +87,35 @@ def find_amex_pot(account_id) -> object:
 
 
 def get_account_and_pot():
+    log.info('Getting account and pot info from Monzo')
     account = get_account()
     return account, find_amex_pot(account['id'])
 
 
-def add_to_pot(account_id, pot_id, amount) -> bool:
-    return True
+def add_to_pot(account_id, pot_id, amount):
+    log.info('Adding £%s to pot %s', amount / 100.0, pot_id)
+    data = {
+        'source_account_id': account_id,
+        'amount': amount,
+        'dedupe_id': int(time.time())
+    }
+    res = requests.put(f'https://api.monzo.com/pots/{pot_id}/deposit', data=data, headers=get_auth_header())
+    res.raise_for_status()
 
 
-def withdraw_from_pot(account_id, pot_id, amount) -> bool:
-    return True
+def withdraw_from_pot(account_id, pot_id, amount):
+    log.info('Withdrawing £%s from pot %s', amount / 100.0, pot_id)
+    data = {
+        'destination_account_id': account_id,
+        'amount': amount,
+        'dedupe_id': time.time()
+    }
+    res = requests.put(f'https://api.monzo.com/pots/{pot_id}/withdraw', data=data, headers=get_auth_header())
+    res.raise_for_status()
 
 
 def send_notification(account_id, title, message):
-    access_token = db.get_tokens('monzo')['access_token']
-    auth_header = {'Authorization': f'Bearer {access_token}'}
+    log.info('Sending notification to Monzo')
     body = {
       "account_id": account_id,
       "type": "basic",
@@ -106,8 +123,7 @@ def send_notification(account_id, title, message):
       "params[title]": title,
       "params[body]": message
     }
-
-    res = requests.post('https://api.monzo.com/feed', headers=auth_header, data=body)
+    res = requests.post('https://api.monzo.com/feed', data=body, headers=get_auth_header())
     res.raise_for_status()
 
 
