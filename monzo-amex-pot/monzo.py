@@ -6,7 +6,6 @@ import time
 from urllib import parse
 from flask import Blueprint, request
 
-
 CLIENT_ID = os.getenv('MONZO_CLIENT_ID')
 CLIENT_SECRET = os.getenv('MONZO_CLIENT_SECRET')
 REDIRECT_URI = "http://localhost:36789/monzo/callback"

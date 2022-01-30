@@ -6,7 +6,6 @@ import time
 import urllib
 from flask import Blueprint, request
 
-
 CLIENT_ID = os.getenv('CLIENT_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 REDIRECT_URI = "http://localhost:36789/truelayer/callback"
