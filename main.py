@@ -3,7 +3,7 @@ import os
 import schedule
 import threading
 import time
-from monzo_amex_pot import monzo, truelayer
+from monzo_amex_pot_sync import monzo, truelayer
 from flask import Flask
 
 log.basicConfig(level=log.INFO)
