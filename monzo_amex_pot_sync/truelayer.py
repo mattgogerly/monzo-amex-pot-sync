@@ -9,7 +9,7 @@ from flask import Blueprint, request
 
 CLIENT_ID = os.getenv('TRUE_LAYER_CLIENT_ID')
 CLIENT_SECRET = os.getenv('TRUE_LAYER_CLIENT_SECRET')
-REDIRECT_URI = "http://localhost:36789/truelayer/callback"
+REDIRECT_URI = os.getenv('TRUE_LAYER_REDIRECT_URI')
 
 bp = Blueprint('truelayer', __name__, url_prefix='/truelayer')
 
@@ -24,7 +24,9 @@ def handle_auth_callback(code):
         'redirect_uri': REDIRECT_URI,
     }
     res = requests.post('https://auth.truelayer.com/connect/token', data=body)
-    res.raise_for_status()
+    if res.status_code != 401 and res.status_code != 403:
+        res.raise_for_status()
+
     data = res.json()
 
     log.info('Obtained tokens from TrueLayer, storing locally')
@@ -40,8 +42,10 @@ def refresh_access_token():
         'refresh_token': refresh_token,
         'grant_type': 'refresh_token'
     }
-    res = requests.post('https://auth.truelayer.com/connect/token', json=body)
-    res.raise_for_status()
+    res = requests.post('https://auth.truelayer.com/connect/token', data=body)
+    if res.status_code != 401 and res.status_code != 403:
+        res.raise_for_status()
+
     data = res.json()
 
     log.info('Refreshed access token, storing locally')
@@ -64,7 +68,9 @@ def get_auth_header() -> object:
 def get_card_balance(account_id) -> object:
     log.info('Fetching balance for card %s', account_id)
     res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/balance', headers=get_auth_header())
-    res.raise_for_status()
+    if res.status_code != 401 and res.status_code != 403:
+        res.raise_for_status()
+
     balance = res.json()['results'][0]['current']
 
     res = requests.get(f'https://api.truelayer.com/data/v1/cards/{account_id}/transactions/pending',
@@ -79,7 +85,8 @@ def get_card_balance(account_id) -> object:
 def get_cards() -> list:
     log.info('Fetching cards from TrueLayer')
     res = requests.get('https://api.truelayer.com/data/v1/cards', headers=get_auth_header())
-    res.raise_for_status()
+    if res.status_code != 401 and res.status_code != 403:
+        res.raise_for_status()
     return res.json()['results']
 
 

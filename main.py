@@ -64,7 +64,7 @@ def run():
 
 
 def setup_scheduling():
-    schedule.every(15).minutes.do(run)
+    schedule.every(30).minutes.do(run)
 
     while True:
         schedule.run_pending()

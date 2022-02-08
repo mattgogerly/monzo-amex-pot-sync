@@ -8,8 +8,7 @@ from flask import Blueprint, request
 
 CLIENT_ID = os.getenv('MONZO_CLIENT_ID')
 CLIENT_SECRET = os.getenv('MONZO_CLIENT_SECRET')
-REDIRECT_URI = "http://localhost:36789/monzo/callback"
-DEDUPE_ID = 0
+REDIRECT_URI = os.getenv('MONZO_REDIRECT_URI')
 
 bp = Blueprint('monzo', __name__, url_prefix='/monzo')
 

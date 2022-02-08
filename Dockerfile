@@ -1,4 +1,4 @@
-FROM python as base
+FROM python:3.9-slim as base
 
 # Setup env
 ENV LANG C.UTF-8
@@ -19,11 +19,6 @@ FROM base AS runtime
 # Copy virtual env from python-deps stage
 COPY --from=python-deps /.venv /.venv
 ENV PATH="/.venv/bin:$PATH"
-
-# Create and switch to a new user
-RUN useradd --create-home appuser
-WORKDIR /home/appuser
-USER appuser
 
 # Install application into container
 COPY . .
