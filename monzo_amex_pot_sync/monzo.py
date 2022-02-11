@@ -116,11 +116,11 @@ def withdraw_from_pot(account_id, pot_id, amount):
 def send_notification(account_id, title, message):
     log.info('Sending notification to Monzo')
     body = {
-      "account_id": account_id,
-      "type": "basic",
-      "params[image_url]": "https://www.nyan.cat/cats/original.gif",
-      "params[title]": title,
-      "params[body]": message
+        "account_id": account_id,
+        "type": "basic",
+        "params[image_url]": "https://www.nyan.cat/cats/original.gif",
+        "params[title]": title,
+        "params[body]": message
     }
     res = requests.post('https://api.monzo.com/feed', data=body, headers=get_auth_header())
     res.raise_for_status()
