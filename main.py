@@ -56,7 +56,7 @@ def run():
     if balance_diff > 0:
         monzo.add_to_pot(monzo_account['id'], monzo_pot['id'], int(balance_diff))
     elif balance_diff < 0:
-        monzo.withdraw_from_pot(monzo_account['id'], monzo_pot['id'], int(balance_diff))
+        monzo.withdraw_from_pot(monzo_account['id'], monzo_pot['id'], abs(int(balance_diff)))
     else:
         log.info('No balance difference, doing nothing')
 
